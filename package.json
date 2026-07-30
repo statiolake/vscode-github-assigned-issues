@@ -1,0 +1,209 @@
+{
+  "name": "github-assigned-issues",
+  "displayName": "GitHub Assigned Issues",
+  "description": "A focused GitHub Projects workflow for issues assigned to you.",
+  "version": "0.1.0",
+  "publisher": "statiolake",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/statiolake/vscode-github-assigned-issues.git"
+  },
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:githubAssignedIssues.board"
+  ],
+  "main": "./dist/src/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "GitHub Assigned Issues",
+      "properties": {
+        "githubAssignedIssues.projects": {
+          "type": "array",
+          "default": [],
+          "scope": "window",
+          "description": "GitHub Projects v2 boards and the status names mapped to each workflow lane.",
+          "items": {
+            "type": "object",
+            "required": [
+              "owner",
+              "ownerType",
+              "number",
+              "statuses"
+            ],
+            "properties": {
+              "owner": {
+                "type": "string",
+                "description": "GitHub organization or user login that owns the project."
+              },
+              "ownerType": {
+                "type": "string",
+                "enum": [
+                  "organization",
+                  "user"
+                ]
+              },
+              "number": {
+                "type": "number",
+                "minimum": 1,
+                "description": "The project number from its URL."
+              },
+              "statuses": {
+                "type": "object",
+                "required": [
+                  "todo",
+                  "inProgress",
+                  "inReview"
+                ],
+                "properties": {
+                  "todo": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "default": [
+                      "Todo"
+                    ]
+                  },
+                  "inProgress": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "default": [
+                      "In Progress"
+                    ]
+                  },
+                  "inReview": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "default": [
+                      "In Review"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "githubAssignedIssues",
+          "title": "Assigned Issues",
+          "icon": "media/github-project.svg"
+        }
+      ]
+    },
+    "views": {
+      "githubAssignedIssues": [
+        {
+          "id": "githubAssignedIssues.board",
+          "name": "My Project Issues"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "githubAssignedIssues.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "githubAssignedIssues.openInWeb",
+        "title": "Open in Web"
+      },
+      {
+        "command": "githubAssignedIssues.checkout",
+        "title": "Checkout"
+      },
+      {
+        "command": "githubAssignedIssues.addressIssue",
+        "title": "Address This Issue"
+      },
+      {
+        "command": "githubAssignedIssues.addressIssueUnavailable",
+        "title": "Address This Issue (Different Repository)",
+        "enablement": "false"
+      },
+      {
+        "command": "githubAssignedIssues.passToReview",
+        "title": "Pass to the Review"
+      },
+      {
+        "command": "githubAssignedIssues.passToReviewUnavailable",
+        "title": "Pass to the Review (Different Repository)",
+        "enablement": "false"
+      },
+      {
+        "command": "githubAssignedIssues.openPullRequest",
+        "title": "Open PR in Web"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "githubAssignedIssues.refresh",
+          "when": "view == githubAssignedIssues.board",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "githubAssignedIssues.openInWeb",
+          "when": "view == githubAssignedIssues.board && viewItem =~ /issue/",
+          "group": "navigation@1"
+        },
+        {
+          "command": "githubAssignedIssues.checkout",
+          "when": "view == githubAssignedIssues.board && viewItem =~ /hasPr/",
+          "group": "navigation@2"
+        },
+        {
+          "command": "githubAssignedIssues.addressIssue",
+          "when": "view == githubAssignedIssues.board && viewItem =~ /todo/ && viewItem =~ /sameRepo/",
+          "group": "workflow@1"
+        },
+        {
+          "command": "githubAssignedIssues.addressIssueUnavailable",
+          "when": "view == githubAssignedIssues.board && viewItem =~ /todo/ && viewItem =~ /differentRepo/",
+          "group": "workflow@1"
+        },
+        {
+          "command": "githubAssignedIssues.passToReview",
+          "when": "view == githubAssignedIssues.board && viewItem =~ /inProgress/ && viewItem =~ /sameRepo/",
+          "group": "workflow@1"
+        },
+        {
+          "command": "githubAssignedIssues.passToReviewUnavailable",
+          "when": "view == githubAssignedIssues.board && viewItem =~ /inProgress/ && viewItem =~ /differentRepo/",
+          "group": "workflow@1"
+        },
+        {
+          "command": "githubAssignedIssues.openPullRequest",
+          "when": "view == githubAssignedIssues.board && viewItem =~ /inReview/ && viewItem =~ /hasPr/",
+          "group": "workflow@2"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -watch -p .",
+    "test": "npm run compile && node --test dist/test/**/*.test.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/vscode": "^1.95.0",
+    "typescript": "^5.7.2"
+  }
+}
