@@ -112,6 +112,12 @@
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "githubAssignedIssues.board",
+        "contents": "No GitHub Projects are registered yet.\n\nRegister a project to choose which Project statuses appear in To Do, In Progress, and In Review.\n\n[Register Project](command:githubAssignedIssues.registerProject)"
+      }
+    ],
     "commands": [
       {
         "command": "githubAssignedIssues.refresh",

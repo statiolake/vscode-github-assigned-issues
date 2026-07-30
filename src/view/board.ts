@@ -29,17 +29,27 @@ export class BoardProvider implements vscode.TreeDataProvider<BoardNode> {
   private readonly changed = new vscode.EventEmitter<BoardNode | undefined | void>();
   readonly onDidChangeTreeData = this.changed.event;
   private issues: readonly IssueNode[] = [];
-  private message = "Configure githubAssignedIssues.projects to get started.";
+  private message = "";
+  private welcome = true;
 
   setIssues(issues: readonly IssueNode[]): void {
     this.issues = issues;
     this.message = "";
+    this.welcome = false;
     this.changed.fire();
   }
 
   setMessage(message: string): void {
     this.issues = [];
     this.message = message;
+    this.welcome = false;
+    this.changed.fire();
+  }
+
+  setWelcome(): void {
+    this.issues = [];
+    this.message = "";
+    this.welcome = true;
     this.changed.fire();
   }
 
@@ -106,6 +116,9 @@ export class BoardProvider implements vscode.TreeDataProvider<BoardNode> {
 
   getChildren(node?: BoardNode): BoardNode[] {
     if (!node) {
+      if (this.welcome) {
+        return [];
+      }
       if (this.message) {
         return [{ kind: "message", message: this.message }];
       }

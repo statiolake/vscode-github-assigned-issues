@@ -16,8 +16,9 @@ Projects v2 boards.
 
 ## Configuration
 
-Run **GitHub Assigned Issues: Register Project** from the Command Palette, or
-click the **+** button in the **My Project Issues** view. The guided flow lets
+Use **Register Project** on the welcome screen shown in the **My Project
+Issues** view. You can also run **GitHub Assigned Issues: Register Project**
+from the Command Palette or click the view's **+** button. The guided flow lets
 you select:
 
 1. A personal or organization owner

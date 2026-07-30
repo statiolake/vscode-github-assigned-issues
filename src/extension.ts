@@ -55,7 +55,7 @@ class ExtensionController implements vscode.Disposable {
     }
     if (!configs.length) {
       this.projects.clear();
-      this.board.setMessage("Configure githubAssignedIssues.projects to get started.");
+      this.board.setWelcome();
       return;
     }
 
