@@ -16,7 +16,19 @@ Projects v2 boards.
 
 ## Configuration
 
-Add `githubAssignedIssues.projects` to your user or workspace settings:
+Run **GitHub Assigned Issues: Register Project** from the Command Palette, or
+click the **+** button in the **My Project Issues** view. The guided flow lets
+you select:
+
+1. A personal or organization owner
+2. An accessible GitHub Project
+3. One or more Project statuses for each workflow lane
+4. User Settings or Workspace Settings as the destination
+
+Running the command again for an existing project updates its registration.
+
+You can also edit `githubAssignedIssues.projects` directly in user or workspace
+settings:
 
 ```json
 {

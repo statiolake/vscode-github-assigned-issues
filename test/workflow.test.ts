@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { isVisibleInLane, laneForStatus, validateProjectConfigs } from "../src/model/workflow";
 import { ProjectConfig } from "../src/model/types";
+import { suggestedStatuses } from "../src/github/discovery";
 
 const config: ProjectConfig = {
   owner: "octo-org",
@@ -35,4 +36,11 @@ test("rejects ambiguous status mappings", () => {
     statuses: { ...config.statuses, inReview: ["Todo"] }
   };
   assert.match(validateProjectConfigs([invalid]).join("\n"), /mapped to both/);
+});
+
+test("suggests conventional project status names during registration", () => {
+  const options = ["Backlog", "Todo", "Doing", "In review", "Done"];
+  assert.deepEqual(suggestedStatuses("todo", options), ["Backlog", "Todo"]);
+  assert.deepEqual(suggestedStatuses("inProgress", options), ["Doing"]);
+  assert.deepEqual(suggestedStatuses("inReview", options), ["In review"]);
 });

@@ -119,6 +119,12 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "githubAssignedIssues.registerProject",
+        "title": "GitHub Assigned Issues: Register Project",
+        "shortTitle": "Register Project",
+        "icon": "$(add)"
+      },
+      {
         "command": "githubAssignedIssues.openInWeb",
         "title": "Open in Web"
       },
@@ -152,9 +158,14 @@
     "menus": {
       "view/title": [
         {
+          "command": "githubAssignedIssues.registerProject",
+          "when": "view == githubAssignedIssues.board",
+          "group": "navigation@1"
+        },
+        {
           "command": "githubAssignedIssues.refresh",
           "when": "view == githubAssignedIssues.board",
-          "group": "navigation"
+          "group": "navigation@2"
         }
       ],
       "view/item/context": [

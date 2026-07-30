@@ -4,6 +4,7 @@ import { GitHubClient } from "./github/client";
 import { assignViewer, loadProject, LoadedProject, updateIssueStatus } from "./github/projects";
 import { ProjectConfig, ProjectIssue, PullRequest } from "./model/types";
 import { validateProjectConfigs } from "./model/workflow";
+import { registerProject } from "./projectRegistration";
 import { BoardProvider, IssueNode } from "./view/board";
 
 class ExtensionController implements vscode.Disposable {
@@ -16,6 +17,10 @@ class ExtensionController implements vscode.Disposable {
     this.disposables.push(
       vscode.window.registerTreeDataProvider("githubAssignedIssues.board", this.board),
       vscode.commands.registerCommand("githubAssignedIssues.refresh", () => this.refresh()),
+      vscode.commands.registerCommand(
+        "githubAssignedIssues.registerProject",
+        () => this.runCommand(async () => registerProject(await this.getClient()))
+      ),
       vscode.commands.registerCommand("githubAssignedIssues.openInWeb", (node: IssueNode) => this.openInWeb(node)),
       vscode.commands.registerCommand("githubAssignedIssues.checkout", (node: IssueNode) => this.checkout(node)),
       vscode.commands.registerCommand("githubAssignedIssues.addressIssue", (node: IssueNode) => this.addressIssue(node)),
