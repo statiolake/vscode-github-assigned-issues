@@ -19,7 +19,7 @@ export class GitHubClient {
   static async create(): Promise<GitHubClient> {
     const session = await vscode.authentication.getSession(
       "github",
-      ["read:user", "repo", "project", "read:project"],
+      ["read:user", "read:org", "repo", "project", "read:project"],
       { createIfNone: true }
     );
     const bootstrap = new GitHubClient(session.accessToken, "", "");

@@ -28,6 +28,12 @@ you select:
 
 Running the command again for an existing project updates its registration.
 
+The extension uses VS Code's built-in GitHub authentication. It requests
+`read:org` to list organizations you belong to, Project access to read and
+change Project items, and `repo` to work with repository issues and pull
+requests. VS Code asks for approval when a required permission has not yet been
+granted.
+
 You can also edit `githubAssignedIssues.projects` directly in user or workspace
 settings:
 
