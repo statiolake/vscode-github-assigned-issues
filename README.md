@@ -65,6 +65,10 @@ used by workflow actions.
 ```sh
 npm install
 npm test
+npm run package
 ```
+
+`npm run package` compiles the extension and creates a versioned `.vsix` file
+in the repository root.
 
 Press `F5` in VS Code to launch an Extension Development Host.

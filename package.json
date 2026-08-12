@@ -214,13 +214,16 @@
     }
   },
   "scripts": {
+    "vscode:prepublish": "npm run compile",
     "compile": "tsc -p .",
+    "package": "vsce package",
     "watch": "tsc -watch -p .",
     "test": "npm run compile && node --test dist/test/**/*.test.js"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@types/vscode": "^1.95.0",
+    "@vscode/vsce": "^3.6.0",
     "typescript": "^5.7.2"
   }
 }
