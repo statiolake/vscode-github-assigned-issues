@@ -12,9 +12,7 @@ export async function resolvePullRequestReferences(
     const selections = batch.map((_, index) => `
       resource${index}: resource(url: $url${index}) {
         ... on PullRequest {
-          id number title url state isDraft headRefName
-          headRepositoryOwner { login }
-          repository { name url defaultBranchRef { name } }
+          number title url state isDraft
         }
       }
     `).join("\n");
@@ -44,19 +42,11 @@ export interface PullRequestReference {
 }
 
 interface GraphQlPullRequest {
-  readonly id: string;
   readonly number: number;
   readonly title: string;
   readonly url: string;
   readonly state: "OPEN" | "CLOSED" | "MERGED";
   readonly isDraft: boolean;
-  readonly headRefName: string;
-  readonly headRepositoryOwner: { readonly login: string } | null;
-  readonly repository: {
-    readonly name: string;
-    readonly url: string;
-    readonly defaultBranchRef: { readonly name: string } | null;
-  };
 }
 
 export function referenceKey(reference: PullRequestReference): string {
@@ -80,22 +70,16 @@ export function parseClosingPullRequestReferences(
 }
 
 function fromGraphQl(pullRequest: GraphQlPullRequest): PullRequest {
-  const url = new URL(pullRequest.repository.url);
-  const owner = url.pathname.split("/").filter(Boolean)[0];
+  const parts = new URL(pullRequest.url).pathname.split("/").filter(Boolean);
   return {
-    id: pullRequest.id,
     number: pullRequest.number,
     title: pullRequest.title,
     url: pullRequest.url,
     state: pullRequest.state,
     isDraft: pullRequest.isDraft,
-    headRefName: pullRequest.headRefName,
-    headRepositoryOwner: pullRequest.headRepositoryOwner?.login ?? owner,
     repository: {
-      owner,
-      name: pullRequest.repository.name,
-      defaultBranch: pullRequest.repository.defaultBranchRef?.name ?? "main",
-      cloneUrl: `${pullRequest.repository.url}.git`
+      owner: parts[0],
+      name: parts[1]
     }
   };
 }

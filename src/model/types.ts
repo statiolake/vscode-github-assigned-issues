@@ -14,22 +14,21 @@ export interface ProjectConfig {
 }
 
 export interface PullRequest {
-  readonly id?: string;
   readonly number: number;
   readonly title: string;
   readonly url: string;
   readonly state: "OPEN" | "CLOSED" | "MERGED";
   readonly isDraft: boolean;
-  readonly headRefName: string;
-  readonly headRepositoryOwner: string;
-  readonly repository: Repository;
+  readonly repository: RepositoryIdentity;
 }
 
-export interface Repository {
+export interface RepositoryIdentity {
   readonly owner: string;
   readonly name: string;
+}
+
+export interface Repository extends RepositoryIdentity {
   readonly defaultBranch: string;
-  readonly cloneUrl: string;
 }
 
 export interface ProjectIssue {

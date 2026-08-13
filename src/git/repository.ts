@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import * as vscode from "vscode";
-import { PullRequest, Repository } from "../model/types";
+import { PullRequest, RepositoryIdentity } from "../model/types";
 import { parseGitHubRemote } from "./remote";
 
 const execFileAsync = promisify(execFile);
@@ -14,7 +14,7 @@ export class LocalRepository {
     readonly name: string
   ) {}
 
-  static async find(repository: Repository): Promise<LocalRepository | undefined> {
+  static async find(repository: RepositoryIdentity): Promise<LocalRepository | undefined> {
     for (const folder of vscode.workspace.workspaceFolders ?? []) {
       try {
         const root = (await git(folder.uri.fsPath, ["rev-parse", "--show-toplevel"])).trim();

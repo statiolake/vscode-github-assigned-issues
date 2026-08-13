@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { Lane, laneLabels, ProjectIssue, PullRequest } from "../model/types";
+import { reconcileByKey } from "../model/reconcile";
 
 export type BoardNode = LaneNode | IssueNode | PullRequestNode | MessageNode;
 
@@ -11,8 +12,8 @@ export interface LaneNode {
 
 export interface IssueNode {
   readonly kind: "issue";
-  readonly issue: ProjectIssue;
-  readonly sameRepository: boolean;
+  issue: ProjectIssue;
+  sameRepository: boolean;
 }
 
 export interface PullRequestNode {
@@ -33,17 +34,28 @@ export class BoardProvider implements vscode.TreeDataProvider<BoardNode> {
   private welcome = true;
 
   setIssues(issues: readonly IssueNode[]): void {
-    this.issues = issues;
+    this.reconcileIssues(issues);
     this.message = "";
     this.welcome = false;
-    this.changed.fire();
+  }
+
+  reconcileProject(projectId: string, issues: readonly IssueNode[]): void {
+    this.reconcileIssues([
+      ...this.issues.filter(node => node.issue.projectId !== projectId),
+      ...issues
+    ]);
+    this.message = "";
+    this.welcome = false;
   }
 
   updateIssue(updated: ProjectIssue): void {
-    this.issues = this.issues.map(node => node.issue.id === updated.id
-      ? { ...node, issue: updated }
-      : node);
-    this.changed.fire();
+    const node = this.issues.find(candidate =>
+      candidate.issue.projectItemId === updated.projectItemId
+    );
+    if (!node) return;
+    const laneChanged = node.issue.lane !== updated.lane;
+    node.issue = updated;
+    this.changed.fire(laneChanged ? undefined : node);
   }
 
   setMessage(message: string): void {
@@ -64,6 +76,18 @@ export class BoardProvider implements vscode.TreeDataProvider<BoardNode> {
     this.changed.fire();
   }
 
+  private reconcileIssues(next: readonly IssueNode[]): void {
+    let laneChanged = false;
+    const reconciled = reconcileByKey(this.issues, next, node => node.issue.projectItemId, (existing, candidate) => {
+      if (existing.issue.lane !== candidate.issue.lane) laneChanged = true;
+      existing.issue = candidate.issue;
+      existing.sameRepository = candidate.sameRepository;
+      this.changed.fire(existing);
+    });
+    this.issues = reconciled.values;
+    if (reconciled.structureChanged || laneChanged) this.changed.fire();
+  }
+
   getTreeItem(node: BoardNode): vscode.TreeItem {
     switch (node.kind) {
       case "lane": {
@@ -71,6 +95,7 @@ export class BoardProvider implements vscode.TreeDataProvider<BoardNode> {
           laneLabels[node.lane],
           vscode.TreeItemCollapsibleState.Expanded
         );
+        item.id = `lane:${node.lane}`;
         item.description = String(node.issues.length);
         item.iconPath = new vscode.ThemeIcon(laneIcon(node.lane));
         item.contextValue = "lane";
@@ -84,6 +109,7 @@ export class BoardProvider implements vscode.TreeDataProvider<BoardNode> {
             ? vscode.TreeItemCollapsibleState.Collapsed
             : vscode.TreeItemCollapsibleState.None
         );
+        item.id = `issue:${issue.projectItemId}`;
         const pullRequestSummary = issue.pullRequests.length
           ? ` · ${issue.pullRequests.map(pr => `PR #${pr.number} ${pr.isDraft ? "Draft" : formatState(pr.state)}`).join(", ")}`
           : "";
@@ -106,6 +132,7 @@ export class BoardProvider implements vscode.TreeDataProvider<BoardNode> {
       case "pullRequest": {
         const pr = node.pullRequest;
         const item = new vscode.TreeItem(`#${pr.number} ${pr.title}`);
+        item.id = `pr:${pr.url}`;
         item.description = `${pr.isDraft ? "Draft · " : ""}${formatState(pr.state)}`;
         item.iconPath = new vscode.ThemeIcon(pr.state === "MERGED" ? "git-merge" : "git-pull-request");
         item.command = {

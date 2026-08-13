@@ -77,18 +77,31 @@ class ExtensionController implements vscode.Disposable {
     if (cached) {
       await this.renderProjects(cached.projects);
       if (!force && isFresh(cached, getRefreshIntervalMinutes())) return;
-    } else {
+    } else if (this.projects.size === 0) {
       this.board.setMessage("Loading GitHub Projects…");
     }
     try {
       this.client ??= await GitHubClient.create();
-      const loaded = await Promise.all(configs.map(config => loadProject(this.client!, config)));
-      await this.cache.save(configs, this.client.viewerLogin, loaded);
-      await this.renderProjects(loaded);
+      const results = await Promise.allSettled(configs.map(async config => {
+        const project = await loadProject(this.client!, config);
+        await this.renderProject(project);
+        return project;
+      }));
+      const failures = results.filter((result): result is PromiseRejectedResult => result.status === "rejected");
+      if (failures.length === results.length && !cached && this.projects.size === 0) {
+        this.board.setMessage("Unable to load GitHub Projects.");
+      }
+      if (failures.length) {
+        void vscode.window.showErrorMessage(
+          `GitHub Assigned Issues: ${failures.map(result => errorMessage(result.reason)).join("; ")}`
+        );
+      }
+      if (this.projects.size) {
+        await this.cache.save(configs, this.client.viewerLogin, [...this.projects.values()]);
+      }
     } catch (error) {
-      const message = errorMessage(error);
-      if (!cached) this.board.setMessage("Unable to load GitHub Projects.");
-      void vscode.window.showErrorMessage(`GitHub Assigned Issues: ${message}`);
+      if (!cached && this.projects.size === 0) this.board.setMessage("Unable to load GitHub Projects.");
+      void vscode.window.showErrorMessage(`GitHub Assigned Issues: ${errorMessage(error)}`);
     }
   }
 
@@ -97,6 +110,16 @@ class ExtensionController implements vscode.Disposable {
     const issues = projects.flatMap(project => project.issues);
     const localMatches = await Promise.all(issues.map(issue => LocalRepository.find(issue.repository)));
     this.board.setIssues(issues.map((issue, index) => ({
+      kind: "issue",
+      issue,
+      sameRepository: localMatches[index] !== undefined
+    })));
+  }
+
+  private async renderProject(project: LoadedProject): Promise<void> {
+    this.projects.set(project.id, project);
+    const localMatches = await Promise.all(project.issues.map(issue => LocalRepository.find(issue.repository)));
+    this.board.reconcileProject(project.id, project.issues.map((issue, index) => ({
       kind: "issue",
       issue,
       sameRepository: localMatches[index] !== undefined
@@ -292,10 +315,6 @@ interface RestPullRequest {
   readonly state: "open" | "closed";
   readonly draft: boolean;
   readonly merged_at: string | null;
-  readonly head: {
-    readonly ref: string;
-    readonly repo: { readonly owner: { readonly login: string } } | null;
-  };
 }
 
 function toPullRequest(pullRequest: RestPullRequest, issue: ProjectIssue): PullRequest {
@@ -305,8 +324,6 @@ function toPullRequest(pullRequest: RestPullRequest, issue: ProjectIssue): PullR
     url: pullRequest.html_url,
     state: pullRequest.merged_at ? "MERGED" : pullRequest.state.toUpperCase() as "OPEN" | "CLOSED",
     isDraft: pullRequest.draft,
-    headRefName: pullRequest.head.ref,
-    headRepositoryOwner: pullRequest.head.repo?.owner.login ?? issue.repository.owner,
     repository: issue.repository
   };
 }
