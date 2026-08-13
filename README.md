@@ -14,6 +14,25 @@ Projects v2 boards.
 - **Address This Issue**: create a branch, assign yourself, and move the item
 - **Pass to the Review**: push the branch, open a draft PR, and move the item
 
+## Visibility rules
+
+- **To Do**: issues assigned to you or with no assignees
+- **In Progress**: issues assigned to you
+- **In Review**: issues assigned to you or with no assignees
+
+Issues assigned only to other people are hidden in every lane.
+
+## Synchronization
+
+The last successful Project snapshot is shown immediately when VS Code starts.
+Automatic synchronization reuses snapshots for five minutes by default; change
+`githubAssignedIssues.refreshIntervalMinutes` to adjust that window. The
+**Refresh** command always requests current data.
+
+Pull requests explicitly linked by GitHub are included in the Project query.
+Additional closing references found in issue bodies are resolved in GraphQL
+batches instead of one request per issue.
+
 ## Configuration
 
 Use **Register Project** on the welcome screen shown in the **My Project

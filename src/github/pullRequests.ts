@@ -1,63 +1,66 @@
 import { GitHubClient } from "./client";
 import { PullRequest, Repository } from "../model/types";
 
-interface RestPullRequest {
-  readonly id: number;
-  readonly node_id: string;
-  readonly number: number;
-  readonly title: string;
-  readonly html_url: string;
-  readonly state: "open" | "closed";
-  readonly draft: boolean;
-  readonly merged_at: string | null;
-  readonly head: {
-    readonly ref: string;
-    readonly repo: { readonly owner: { login: string } } | null;
-  };
-  readonly base: {
-    readonly repo: {
-      readonly name: string;
-      readonly owner: { readonly login: string };
-      readonly clone_url: string;
-      readonly default_branch: string;
-    };
-  };
-}
-
-export async function collectPullRequestReferences(
+export async function resolvePullRequestReferences(
   client: GitHubClient,
-  body: string,
-  issueRepository: Repository,
-  linked: readonly PullRequest[]
-): Promise<readonly PullRequest[]> {
+  references: readonly PullRequestReference[]
+): Promise<ReadonlyMap<string, PullRequest>> {
+  const unique = [...new Map(references.map(reference => [referenceKey(reference), reference])).values()];
   const result = new Map<string, PullRequest>();
-  for (const pullRequest of linked) {
-    result.set(pullRequest.url, pullRequest);
+  for (let offset = 0; offset < unique.length; offset += 50) {
+    const batch = unique.slice(offset, offset + 50);
+    const selections = batch.map((_, index) => `
+      resource${index}: resource(url: $url${index}) {
+        ... on PullRequest {
+          id number title url state isDraft headRefName
+          headRepositoryOwner { login }
+          repository { name url defaultBranchRef { name } }
+        }
+      }
+    `).join("\n");
+    const declarations = batch.map((_, index) => `$url${index}: URI!`).join(", ");
+    const variables = Object.fromEntries(batch.map((reference, index) => [
+      `url${index}`,
+      `https://github.com/${reference.owner}/${reference.repository}/pull/${reference.number}`
+    ]));
+    const data = await client.graphql<Record<string, GraphQlPullRequest | null>>(
+      `query PullRequestReferences(${declarations}) { ${selections} }`,
+      variables
+    );
+    batch.forEach((reference, index) => {
+      const pullRequest = data[`resource${index}`];
+      if (pullRequest) {
+        result.set(referenceKey(reference), fromGraphQl(pullRequest));
+      }
+    });
   }
-
-  const references = parseClosingPullRequestReferences(body, issueRepository);
-  await Promise.all(references.map(async reference => {
-    const key = `https://github.com/${reference.owner}/${reference.repository}/pull/${reference.number}`;
-    if (result.has(key)) {
-      return;
-    }
-    try {
-      const pullRequest = await client.rest<RestPullRequest>(
-        "GET",
-        `/repos/${encodeURIComponent(reference.owner)}/${encodeURIComponent(reference.repository)}/pulls/${reference.number}`
-      );
-      result.set(pullRequest.html_url, fromRest(pullRequest));
-    } catch {
-      // A closing reference can point to an issue. Only actual pull requests belong here.
-    }
-  }));
-  return [...result.values()];
+  return result;
 }
 
 export interface PullRequestReference {
   readonly owner: string;
   readonly repository: string;
   readonly number: number;
+}
+
+interface GraphQlPullRequest {
+  readonly id: string;
+  readonly number: number;
+  readonly title: string;
+  readonly url: string;
+  readonly state: "OPEN" | "CLOSED" | "MERGED";
+  readonly isDraft: boolean;
+  readonly headRefName: string;
+  readonly headRepositoryOwner: { readonly login: string } | null;
+  readonly repository: {
+    readonly name: string;
+    readonly url: string;
+    readonly defaultBranchRef: { readonly name: string } | null;
+  };
+}
+
+export function referenceKey(reference: PullRequestReference): string {
+  return `${reference.owner.toLocaleLowerCase()}/${reference.repository.toLocaleLowerCase()}#${reference.number}`;
 }
 
 export function parseClosingPullRequestReferences(
@@ -76,21 +79,23 @@ export function parseClosingPullRequestReferences(
   return references;
 }
 
-function fromRest(pullRequest: RestPullRequest): PullRequest {
+function fromGraphQl(pullRequest: GraphQlPullRequest): PullRequest {
+  const url = new URL(pullRequest.repository.url);
+  const owner = url.pathname.split("/").filter(Boolean)[0];
   return {
-    id: pullRequest.node_id,
+    id: pullRequest.id,
     number: pullRequest.number,
     title: pullRequest.title,
-    url: pullRequest.html_url,
-    state: pullRequest.merged_at ? "MERGED" : pullRequest.state.toUpperCase() as "OPEN" | "CLOSED",
-    isDraft: pullRequest.draft,
-    headRefName: pullRequest.head.ref,
-    headRepositoryOwner: pullRequest.head.repo?.owner.login ?? pullRequest.base.repo.owner.login,
+    url: pullRequest.url,
+    state: pullRequest.state,
+    isDraft: pullRequest.isDraft,
+    headRefName: pullRequest.headRefName,
+    headRepositoryOwner: pullRequest.headRepositoryOwner?.login ?? owner,
     repository: {
-      owner: pullRequest.base.repo.owner.login,
-      name: pullRequest.base.repo.name,
-      defaultBranch: pullRequest.base.repo.default_branch,
-      cloneUrl: pullRequest.base.repo.clone_url
+      owner,
+      name: pullRequest.repository.name,
+      defaultBranch: pullRequest.repository.defaultBranchRef?.name ?? "main",
+      cloneUrl: `${pullRequest.repository.url}.git`
     }
   };
 }

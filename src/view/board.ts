@@ -39,6 +39,13 @@ export class BoardProvider implements vscode.TreeDataProvider<BoardNode> {
     this.changed.fire();
   }
 
+  updateIssue(updated: ProjectIssue): void {
+    this.issues = this.issues.map(node => node.issue.id === updated.id
+      ? { ...node, issue: updated }
+      : node);
+    this.changed.fire();
+  }
+
   setMessage(message: string): void {
     this.issues = [];
     this.message = message;

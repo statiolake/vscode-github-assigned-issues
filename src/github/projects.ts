@@ -1,7 +1,11 @@
 import { GitHubClient } from "./client";
 import { laneForStatus, isVisibleInLane } from "../model/workflow";
 import { Lane, ProjectConfig, ProjectIssue, PullRequest, Repository } from "../model/types";
-import { collectPullRequestReferences } from "./pullRequests";
+import {
+  parseClosingPullRequestReferences,
+  referenceKey,
+  resolvePullRequestReferences
+} from "./pullRequests";
 
 interface ProjectPage {
   readonly title: string;
@@ -107,6 +111,7 @@ export interface LoadedProject {
   readonly statusFieldId: string;
   readonly statusOptions: ReadonlyMap<string, string>;
   readonly destinationOptionIds: Readonly<Partial<Record<Lane, string>>>;
+  readonly destinationStatusNames: Readonly<Partial<Record<Lane, string>>>;
   readonly issues: readonly ProjectIssue[];
 }
 
@@ -136,7 +141,10 @@ export async function loadProject(
     throw new Error(`Project ${config.owner}/${config.number} has no single-select Status field`);
   }
 
-  const issues = await Promise.all(nodes.map(async (node): Promise<ProjectIssue | undefined> => {
+  const pending = nodes.map((node): (Omit<ProjectIssue, "pullRequests"> & {
+    linked: readonly PullRequest[];
+    references: ReturnType<typeof parseClosingPullRequestReferences>;
+  }) | undefined => {
     const content = node.content;
     if (!content || content.__typename !== "Issue" || !node.status) {
       return undefined;
@@ -148,7 +156,6 @@ export async function loadProject(
     }
     const repository = toRepository(content.repository);
     const linked = content.closedByPullRequestsReferences.nodes.map(toPullRequest);
-    const referenced = await collectPullRequestReferences(client, content.body, repository, linked);
     return {
       id: content.id,
       projectItemId: node.id,
@@ -163,9 +170,37 @@ export async function loadProject(
       url: content.url,
       repository,
       assigneeLogins: assignees,
-      pullRequests: referenced
+      linked,
+      references: parseClosingPullRequestReferences(content.body, repository)
     };
-  }));
+  }).filter((issue): issue is NonNullable<typeof issue> => issue !== undefined);
+
+  const unresolvedReferences = pending.flatMap(issue => issue.references.filter(reference =>
+    !issue.linked.some(pullRequest => pullRequest.url ===
+      `https://github.com/${reference.owner}/${reference.repository}/pull/${reference.number}`)
+  ));
+  const resolved = await resolvePullRequestReferences(client, unresolvedReferences);
+  const issues: ProjectIssue[] = pending.map(({ linked, references, ...issue }) => {
+    const pullRequests = new Map(linked.map(pullRequest => [pullRequest.url, pullRequest]));
+    for (const reference of references) {
+      const pullRequest = resolved.get(referenceKey(reference));
+      if (pullRequest) {
+        pullRequests.set(pullRequest.url, pullRequest);
+      }
+    }
+    return { ...issue, pullRequests: [...pullRequests.values()] };
+  });
+
+  const destinations = Object.fromEntries(
+    (["todo", "inProgress", "inReview"] as const).flatMap(lane => {
+      const destination = config.statuses[lane]
+        .map(name => metadata!.field!.options.find(option =>
+          option.name.toLocaleLowerCase() === name.toLocaleLowerCase()
+        ))
+        .find(option => option !== undefined);
+      return destination ? [[lane, destination]] : [];
+    })
+  ) as Partial<Record<Lane, { id: string; name: string }>>;
 
   return {
     id: metadata.id,
@@ -173,16 +208,12 @@ export async function loadProject(
     statusFieldId: metadata.field.id,
     statusOptions: new Map(metadata.field.options.map(option => [option.name.toLocaleLowerCase(), option.id])),
     destinationOptionIds: Object.fromEntries(
-      (["todo", "inProgress", "inReview"] as const).flatMap(lane => {
-        const destination = config.statuses[lane]
-          .map(name => metadata!.field!.options.find(option =>
-            option.name.toLocaleLowerCase() === name.toLocaleLowerCase()
-          ))
-          .find(option => option !== undefined);
-        return destination ? [[lane, destination.id]] : [];
-      })
+      Object.entries(destinations).map(([lane, option]) => [lane, option.id])
     ),
-    issues: issues.filter((issue): issue is ProjectIssue => issue !== undefined)
+    destinationStatusNames: Object.fromEntries(
+      Object.entries(destinations).map(([lane, option]) => [lane, option.name])
+    ),
+    issues
   };
 }
 

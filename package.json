@@ -92,6 +92,13 @@
               }
             }
           }
+        },
+        "githubAssignedIssues.refreshIntervalMinutes": {
+          "type": "number",
+          "default": 5,
+          "minimum": 0,
+          "scope": "window",
+          "description": "How long a successful project snapshot is reused before automatic synchronization. The Refresh command always fetches current data. Set to 0 to synchronize on every extension activation."
         }
       }
     },
