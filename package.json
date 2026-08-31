@@ -2,7 +2,7 @@
   "name": "github-assigned-issues",
   "displayName": "GitHub Assigned Issues",
   "description": "A focused GitHub Projects workflow for issues assigned to you.",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "publisher": "statiolake",
   "license": "MIT",
   "repository": {
@@ -225,12 +225,16 @@
     "compile": "tsc -p .",
     "package": "vsce package",
     "watch": "tsc -watch -p .",
-    "test": "npm run compile && node --test dist/test/**/*.test.js"
+    "test": "npm run compile && node --test dist/test/**/*.test.js",
+    "publish": "npm run publish:vsce && npm run publish:ovsx",
+    "publish:vsce": "vsce publish",
+    "publish:ovsx": "ovsx publish"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@types/vscode": "^1.95.0",
     "@vscode/vsce": "^3.6.0",
+    "ovsx": "^1.1.1",
     "typescript": "^5.7.2"
   }
 }

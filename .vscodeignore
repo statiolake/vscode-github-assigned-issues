@@ -1,9 +1,49 @@
-.git/**
-.gitignore
-.github/**
-.vscode/**
+# Source files (compiled to dist/)
 src/**
 test/**
+
+# Build artifacts
 dist/test/**
 **/*.map
+**/*.ts
+out/**
+
+# Development files
+.git/**
+.github/**
+.vscode/**
+.vscode-test/**
+.devcontainer/**
+.claude/**
+
+# Config files
+.gitignore
+.editorconfig
 tsconfig.json
+eslint.config.mjs
+biome.json
+esbuild.js
+vsc-extension-quickstart.md
+
+# Package manager
+node_modules/**
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Secrets and credentials
+.env
+.env.*
+*.pem
+*.key
+*.p12
+.ovsx-token
+.vsce-token
+.npmrc
+
+# Old VSIX files
+*.vsix
+
+# OS files
+.DS_Store
+**/.DS_Store
